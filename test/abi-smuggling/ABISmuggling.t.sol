@@ -17,7 +17,7 @@ contract ABISmugglingChallenge is Test {
     SelfAuthorizedVault vault;
 
     modifier checkSolvedByPlayer() {
-        vm.startPrank(player, player);
+        vm.startPrank(deployer, deployer);
         _;
         vm.stopPrank();
         _isSolved();
@@ -73,7 +73,8 @@ contract ABISmugglingChallenge is Test {
      * CODE YOUR SOLUTION HERE
      */
     function test_abiSmuggling() public checkSolvedByPlayer {
-        
+        bytes memory actionData = abi.encodeWithSelector(SelfAuthorizedVault.sweepFunds.selector, recovery, address (token));
+        vault.execute(address (vault), actionData);
     }
 
     /**
