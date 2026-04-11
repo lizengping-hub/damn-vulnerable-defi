@@ -86,7 +86,6 @@ contract TheRewarderDistributor {
 
         for (uint256 i = 0; i < inputClaims.length; i++) {
             inputClaim = inputClaims[i];
-
             uint256 wordPosition = inputClaim.batchNumber / 256;
             uint256 bitPosition = inputClaim.batchNumber % 256;
 
@@ -107,6 +106,7 @@ contract TheRewarderDistributor {
             if (i == inputClaims.length - 1) {
                 if (!_setClaimed(token, amount, wordPosition, bitsSet)) revert AlreadyClaimed();
             }
+
 
             bytes32 leaf = keccak256(abi.encodePacked(msg.sender, inputClaim.amount));
             bytes32 root = distributions[token].roots[inputClaim.batchNumber];
