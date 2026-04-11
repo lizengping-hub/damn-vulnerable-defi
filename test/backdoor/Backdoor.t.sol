@@ -8,7 +8,7 @@ import {SafeProxyFactory} from "@safe-global/safe-smart-account/contracts/proxie
 import {IProxyCreationCallback} from "@safe-global/safe-smart-account/contracts/proxies/IProxyCreationCallback.sol";
 import {DamnValuableToken} from "../../src/DamnValuableToken.sol";
 import {WalletRegistry} from "../../src/backdoor/WalletRegistry.sol";
-import {Attacker} from "./Attacker.sol";
+import {BackdoorAttacker} from "./BackdoorAttacker.sol";
 
 contract BackdoorChallenge is Test {
     address deployer = makeAddr("deployer");
@@ -72,7 +72,7 @@ contract BackdoorChallenge is Test {
      * CODE YOUR SOLUTION HERE
      */
     function test_backdoor() public checkSolvedByPlayer {
-        Attacker attacker = new Attacker();
+        BackdoorAttacker attacker = new BackdoorAttacker();
         attacker.execute(users, recovery, address (singletonCopy), address(walletFactory), address(walletRegistry), address(token));
     }
 
