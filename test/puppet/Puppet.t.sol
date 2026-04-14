@@ -95,7 +95,7 @@ contract PuppetChallenge is Test {
     function test_puppetV1() public checkSolvedByPlayer {
         PuppetAttacker attacker = new PuppetAttacker();
         token.transfer(address(attacker), PLAYER_INITIAL_TOKEN_BALANCE);
-        attacker.attack(uniswapV1Exchange, token,lendingPool,  recovery, POOL_INITIAL_TOKEN_BALANCE);
+        attacker.attack{value: PLAYER_INITIAL_ETH_BALANCE}(uniswapV1Exchange, token,lendingPool,  recovery, POOL_INITIAL_TOKEN_BALANCE);
     }
 
     // Utility function to calculate Uniswap prices
