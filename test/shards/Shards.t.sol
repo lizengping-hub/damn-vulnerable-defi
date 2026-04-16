@@ -11,6 +11,7 @@ import {
     DamnValuableNFT
 } from "../../src/shards/ShardsNFTMarketplace.sol";
 import {DamnValuableStaking} from "../../src/DamnValuableStaking.sol";
+import "./ShardsAttacker.sol";
 
 contract ShardsChallenge is Test {
     address deployer = makeAddr("deployer");
@@ -115,6 +116,9 @@ contract ShardsChallenge is Test {
      */
     function test_shards() public checkSolvedByPlayer {
         
+        ShardsAttacker attacker = new ShardsAttacker();
+        attacker.attack(token, marketplace, recovery);
+
     }
 
     /**
